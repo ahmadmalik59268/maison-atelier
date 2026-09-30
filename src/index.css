@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Bodoni Moda", Georgia, serif;
+  --font-sans: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Bodoni Moda", Georgia, serif;
+  
+  --color-canvas: #FAF8F5;
+  --color-canvas-subtle: #F2EFEB;
+  --color-canvas-muted: #E8E2D8;
+  --color-obsidian: #18181B;
+  --color-terracotta: #9E4734;
+  --color-terracotta-hover: #853727;
+  --color-sand: #E8E2D8;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    font-family: var(--font-sans);
+    background-color: #FAF8F5;
+    color: #18181B;
+  }
+
+  body {
+    background-color: #FAF8F5;
+    color: #18181B;
+    overflow-x: hidden;
+  }
+
+  /* Zero-radius architectural philosophy */
+  *, ::before, ::after {
+    border-radius: 0 !important;
+  }
+}
+
+/* Material symbol baseline alignment */
+.material-symbols-outlined {
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 300,
+    'GRAD' 0,
+    'opsz' 20;
+  vertical-align: middle;
+}
+
+.material-symbols-outlined.fill-icon {
+  font-variation-settings:
+    'FILL' 1,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 20;
+}
+
+/* Custom editorial scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #FAF8F5;
+}
+::-webkit-scrollbar-thumb {
+  background: #D9D4CC;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9E4734;
+}
