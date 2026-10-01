@@ -16,11 +16,8 @@ import {
   ATELIER_PRODUCTS,
   ATELIER_CATEGORIES,
   CURRENCIES,
-  DEMO_USER,
-  DEMO_ADMIN_USER,
-  DEMO_ORDERS,
 } from '../data/atelierData';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, getSupabaseConfigAudit, getSupabaseConfigError } from '../lib/supabase';
 
 export interface ToastItem {
   id: string;
@@ -78,8 +75,6 @@ export interface ShopContextType {
   login: (email: string, passwordOrRole?: string, targetRole?: 'customer' | 'admin') => Promise<AuthResult>;
   register: (param1: string | { fullName: string; email: string; password?: string }, email?: string, password?: string) => Promise<AuthResult>;
   logout: () => Promise<void>;
-  loginAsDemoCustomer: () => void;
-  loginAsAdmin: () => void;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
   updateUserProfile: (updates: Partial<UserProfile>) => Promise<void>;
   updateMeasurements: (measurements: UserMeasurements) => void;
@@ -180,18 +175,18 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UserProfile | null>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEYS.USER);
-      return saved ? JSON.parse(saved) : DEMO_USER;
+      return saved ? JSON.parse(saved) : null;
     } catch {
-      return DEMO_USER;
+      return null;
     }
   });
 
   const [orders, setOrders] = useState<OrderRecord[]>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEYS.ORDERS);
-      return saved ? JSON.parse(saved) : DEMO_ORDERS;
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return DEMO_ORDERS;
+      return [];
     }
   });
 
@@ -510,59 +505,80 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     targetRole?: 'customer' | 'admin'
   ): Promise<AuthResult> => {
     setIsAuthLoading(true);
+    const normalizedEmail = email.trim().toLowerCase();
+    const audit = getSupabaseConfigAudit();
 
-    if (isSupabaseConfigured()) {
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password: passwordOrRole || '',
-        });
-
-        if (error || !data.user) {
-          setIsAuthLoading(false);
-          const msg = error?.message || 'Authentication failed';
-          if (msg.toLowerCase().includes('email not confirmed')) {
-            return {
-              success: false,
-              error: 'Email not confirmed: Please check your inbox for the confirmation link, OR turn off "Confirm email" in Supabase Dashboard -> Authentication -> Providers -> Email.',
-            };
-          }
-          return { success: false, error: msg };
-        }
-
-        const profile = await fetchUserProfileFromSupabase(data.user.id, data.user.email || '');
-        setIsAuthLoading(false);
-
-        if (!profile) {
-          return { success: false, error: 'User profile not found' };
-        }
-
-        if (targetRole === 'admin' && profile.role !== 'admin') {
-          return { success: false, role: 'customer', error: 'Access Denied: You do not have admin permissions.' };
-        }
-
-        setUser(profile);
-        fetchOrders(profile.id, profile.role);
-        return { success: true, role: profile.role };
-      } catch (err: any) {
-        setIsAuthLoading(false);
-        return { success: false, error: err.message || 'Network error during sign in' };
-      }
-    } else {
-      // Demo Mode Fallback
+    if (!isSupabaseConfigured()) {
       setIsAuthLoading(false);
-      const matchedDemo = email.includes('admin') || passwordOrRole === 'admin' ? DEMO_ADMIN_USER : DEMO_USER;
-      if (targetRole === 'admin' && matchedDemo.role !== 'admin') {
-        return { success: false, role: 'customer', error: 'Access Denied: Admin role required.' };
+      const configErr = getSupabaseConfigError() || 'Supabase authentication is required. Please configure VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.';
+      console.error('[Ahmad Clothing Auth Error]', configErr);
+      return {
+        success: false,
+        error: configErr,
+      };
+    }
+
+    try {
+      console.groupCollapsed(`[Ahmad Clothing Auth] Sign-in: ${normalizedEmail}`);
+      console.info('Supabase Endpoint Host:', audit.host);
+      console.info('Target Role Requested:', targetRole || 'any');
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password: passwordOrRole || '',
+      });
+
+      if (error || !data.user) {
+        setIsAuthLoading(false);
+        const rawMsg = error?.message || 'Authentication failed';
+        console.warn('[Ahmad Clothing Auth] Supabase Auth Error:', {
+          errorName: error?.name,
+          errorMessage: rawMsg,
+          status: error?.status,
+        });
+        console.groupEnd();
+
+        if (rawMsg.toLowerCase().includes('email not confirmed')) {
+          return {
+            success: false,
+            error: 'Email not confirmed: Please check your inbox for the confirmation link, OR turn off "Confirm email" in Supabase Dashboard -> Authentication -> Providers -> Email.',
+          };
+        }
+
+        if (rawMsg.toLowerCase().includes('invalid login credentials')) {
+          return {
+            success: false,
+            error: 'Invalid login credentials. Please verify your email and password. Ensure this user account was registered in Supabase Auth (auth.users) and that the password matches.',
+          };
+        }
+
+        return { success: false, error: rawMsg };
       }
 
-      const loggedInUser: UserProfile = {
-        ...matchedDemo,
-        email: email,
-        fullName: matchedDemo.fullName || 'Valued Patron',
-      };
-      setUser(loggedInUser);
-      return { success: true, role: loggedInUser.role };
+      console.info('[Ahmad Clothing Auth] Supabase Auth authenticated successfully. User ID:', data.user.id);
+
+      const profile = await fetchUserProfileFromSupabase(data.user.id, data.user.email || normalizedEmail);
+      setIsAuthLoading(false);
+
+      console.info('[Ahmad Clothing Auth] Resolved Profile Role:', profile?.role || 'none');
+      console.groupEnd();
+
+      if (!profile) {
+        return { success: false, error: 'User profile record not found in database.' };
+      }
+
+      if (targetRole === 'admin' && profile.role !== 'admin') {
+        console.warn(`[Ahmad Clothing Auth] Access Denied: User role is "${profile.role}", but "admin" role was required.`);
+        return { success: false, role: 'customer', error: 'Access Denied: Your account does not have administrator privileges.' };
+      }
+
+      setUser(profile);
+      fetchOrders(profile.id, profile.role);
+      return { success: true, role: profile.role };
+    } catch (err: any) {
+      setIsAuthLoading(false);
+      console.error('[Ahmad Clothing Auth] Network / Unexpected error during sign in:', err);
+      return { success: false, error: err.message || 'Network error during sign in' };
     }
   };
 
@@ -585,62 +601,63 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       password = passwordParam || '';
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
     setIsAuthLoading(true);
 
-    if (isSupabaseConfigured()) {
-      try {
-        // ALWAYS FORCE 'customer' ROLE! Public signup MUST NEVER allow choosing admin role!
-        const { data, error } = await supabase.auth.signUp({
-          email: email.trim(),
-          password: password,
-          options: {
-            data: {
-              full_name: fullName.trim(),
-            },
-          },
-        });
-
-        if (error || !data.user) {
-          setIsAuthLoading(false);
-          return { success: false, error: error?.message || 'Registration failed' };
-        }
-
-        // Insert into profiles table with role = 'customer'
-        await supabase.from('profiles').upsert({
-          id: data.user.id,
-          email: email.trim(),
-          full_name: fullName.trim(),
-          role: 'customer', // HARDCODED SECURITY CONSTRAINT!
-        });
-
-        const newProfile: UserProfile = {
-          id: data.user.id,
-          fullName: fullName.trim(),
-          email: email.trim(),
-          role: 'customer',
-          tier: 'Atelier Patron',
-          joinedDate: new Date().toLocaleDateString(),
-        };
-
-        setUser(newProfile);
-        setIsAuthLoading(false);
-        return { success: true, role: 'customer' };
-      } catch (err: any) {
-        setIsAuthLoading(false);
-        return { success: false, error: err.message || 'Registration error' };
-      }
-    } else {
+    if (!isSupabaseConfigured()) {
       setIsAuthLoading(false);
+      const configErr = getSupabaseConfigError() || 'Supabase authentication is required. Please configure VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.';
+      console.error('[Ahmad Clothing Auth Error]', configErr);
+      return {
+        success: false,
+        error: configErr,
+      };
+    }
+
+    try {
+      console.info(`[Ahmad Clothing Auth] Registering patron: ${normalizedEmail}`);
+
+      // ALWAYS FORCE 'customer' ROLE! Public signup MUST NEVER allow choosing admin role!
+      const { data, error } = await supabase.auth.signUp({
+        email: normalizedEmail,
+        password: password,
+        options: {
+          data: {
+            full_name: fullName.trim(),
+          },
+        },
+      });
+
+      if (error || !data.user) {
+        setIsAuthLoading(false);
+        console.warn('[Ahmad Clothing Auth] Registration failed:', error?.message);
+        return { success: false, error: error?.message || 'Registration failed' };
+      }
+
+      // Insert into profiles table with role = 'customer'
+      await supabase.from('profiles').upsert({
+        id: data.user.id,
+        email: normalizedEmail,
+        full_name: fullName.trim(),
+        role: 'customer', // HARDCODED SECURITY CONSTRAINT!
+      });
+
       const newProfile: UserProfile = {
-        id: `user-${Date.now()}`,
-        fullName: fullName || 'New Patron',
-        email: email || 'patron@ahmadclothing.com',
+        id: data.user.id,
+        fullName: fullName.trim(),
+        email: normalizedEmail,
         role: 'customer',
         tier: 'Atelier Patron',
         joinedDate: new Date().toLocaleDateString(),
       };
+
       setUser(newProfile);
+      setIsAuthLoading(false);
       return { success: true, role: 'customer' };
+    } catch (err: any) {
+      setIsAuthLoading(false);
+      console.error('[Ahmad Clothing Auth] Registration exception:', err);
+      return { success: false, error: err.message || 'Registration error' };
     }
   };
 
@@ -651,16 +668,6 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setCart([]);
     addToast('You have been signed out from Ahmad Clothing.', 'info');
-  };
-
-  const loginAsDemoCustomer = () => {
-    setUser(DEMO_USER);
-    addToast('Logged in as Demo Customer', 'success');
-  };
-
-  const loginAsAdmin = () => {
-    setUser(DEMO_ADMIN_USER);
-    addToast('Logged in as Admin Concierge', 'success');
   };
 
   const updateProfile = async (updates: Partial<UserProfile>) => {
@@ -1164,8 +1171,6 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         register,
         logout,
-        loginAsDemoCustomer,
-        loginAsAdmin,
         updateProfile,
         updateUserProfile,
         updateMeasurements,

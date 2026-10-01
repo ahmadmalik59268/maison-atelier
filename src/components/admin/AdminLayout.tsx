@@ -36,11 +36,11 @@ export const AdminLayout: React.FC = () => {
           </p>
           <div className="space-y-2">
             <Link
-              to="/login"
+              to="/admin/login"
               state={{ from: location }}
               className="block w-full bg-[#1A1A1A] text-white py-3 text-xs font-mono uppercase tracking-widest hover:bg-black"
             >
-              Sign In with Admin Passkey
+              Sign In with Admin Account
             </Link>
             <Link
               to="/"

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Shield, ArrowRight, Lock, Mail, Sparkles, KeyRound } from 'lucide-react';
+import { ArrowRight, Lock, Mail, AlertTriangle } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { Logo } from '../components/Logo';
+import { isSupabaseConfigured, getSupabaseConfigError } from '../lib/supabase';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -14,22 +15,18 @@ export const LoginPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Quick fill for demo
-  const handleQuickLogin = (demoRole: 'client' | 'admin') => {
-    if (demoRole === 'admin') {
-      setEmail('concierge@ahmadclothing.com');
-      setPassword('admin123');
-    } else {
-      setEmail('client@ahmadclothing.com');
-      setPassword('client2026');
-    }
-  };
+  const isConfigured = isSupabaseConfigured();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setIsSubmitting(true);
 
+    if (!isConfigured) {
+      setError(getSupabaseConfigError() || 'Supabase authentication is not configured.');
+      return;
+    }
+
+    setIsSubmitting(true);
     const res = await login(email, password, 'customer');
     setIsSubmitting(false);
 
@@ -61,6 +58,15 @@ export const LoginPage: React.FC = () => {
 
         {/* Card */}
         <div className="bg-white border border-[#E5E0D8] p-8 sm:p-10 shadow-sm relative">
+          {!isConfigured && (
+            <div className="mb-6 p-3.5 bg-amber-50 border border-amber-200 text-amber-900 text-xs font-mono flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <span>
+                Supabase credentials required. Please set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.
+              </span>
+            </div>
+          )}
+
           {error && (
             <div className="mb-6 p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-mono">
               {error}
@@ -114,7 +120,7 @@ export const LoginPage: React.FC = () => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-[#1A1A1A] text-white py-3.5 text-xs font-mono uppercase tracking-[0.2em] hover:bg-black transition-colors flex items-center justify-center gap-2 mt-4"
+              className="w-full bg-[#1A1A1A] text-white py-3.5 text-xs font-mono uppercase tracking-[0.2em] hover:bg-black transition-colors flex items-center justify-center gap-2 mt-4 cursor-pointer disabled:opacity-50"
             >
               {isSubmitting ? (
                 'Authenticating...'
@@ -125,31 +131,6 @@ export const LoginPage: React.FC = () => {
               )}
             </button>
           </form>
-
-          {/* Quick Demo Access Bar */}
-          <div className="mt-8 pt-6 border-t border-[#E5E0D8]">
-            <p className="text-[10px] font-mono uppercase tracking-widest text-[#8C8275] mb-2.5 text-center">
-              Quick Test Credentials
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('client')}
-                className="text-[10px] font-mono bg-[#FAF8F5] border border-[#E5E0D8] p-2 hover:bg-[#F2EFE9] text-[#1A1A1A] text-left transition-colors"
-              >
-                <span className="font-semibold block">Client Patron</span>
-                <span className="text-[#8C8275] text-[9px]">Elena Vane</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('admin')}
-                className="text-[10px] font-mono bg-[#FAF8F5] border border-[#E5E0D8] p-2 hover:bg-[#F2EFE9] text-[#1A1A1A] text-left transition-colors"
-              >
-                <span className="font-semibold block">Atelier Admin</span>
-                <span className="text-[#8C8275] text-[9px]">Concierge Access</span>
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Footer Link */}

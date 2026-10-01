@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { X, Search, PackageCheck, Plane, CheckCircle2, Clock, MapPin, Truck, AlertCircle } from 'lucide-react';
 import { OrderRecord, CurrencyCode } from '../types';
-import { DEMO_ORDERS, CURRENCIES } from '../data/atelierData';
+import { CURRENCIES } from '../data/atelierData';
+import { useShop } from '../context/ShopContext';
 
 interface OrderTrackingModalProps {
   isOpen: boolean;
@@ -16,82 +17,31 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
   currency = 'USD',
   initialOrderId,
 }) => {
-  const [searchCode, setSearchCode] = useState(initialOrderId || 'MA-2025-8831');
-  const [currentOrder, setCurrentOrder] = useState<OrderRecord | null>(DEMO_ORDERS[0]);
-  const [searched, setSearched] = useState(true);
+  const { orders } = useShop();
+  const [searchCode, setSearchCode] = useState(initialOrderId || (orders[0]?.trackingNumber || orders[0]?.id || ''));
+  const [currentOrder, setCurrentOrder] = useState<OrderRecord | null>(orders[0] || null);
+  const [searched, setSearched] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
   React.useEffect(() => {
     if (initialOrderId) {
       setSearchCode(initialOrderId);
       handleSearch(initialOrderId);
+    } else if (orders.length > 0 && !currentOrder) {
+      setCurrentOrder(orders[0]);
     }
-  }, [initialOrderId]);
+  }, [initialOrderId, orders]);
 
   if (!isOpen) return null;
 
   const handleSearch = (codeToSearch?: string) => {
     const query = (codeToSearch || searchCode).trim().toUpperCase();
     setSearched(true);
-    const found = DEMO_ORDERS.find((o) => o.id.toUpperCase() === query);
+    const found = orders.find(
+      (o) => o.id.toUpperCase() === query || o.trackingNumber?.toUpperCase() === query
+    );
     if (found) {
       setCurrentOrder(found);
-      setNotFound(false);
-    } else if (query.startsWith('MA-2025-')) {
-      // Dynamic simulated order for any custom placed order in current session
-      const dynamicOrder: OrderRecord = {
-        id: query,
-        date: 'Today, 2025',
-        total: 770,
-        subtotal: 770,
-        shipping: 0,
-        discount: 0,
-        currency: 'USD',
-        status: 'pending',
-        carrier: 'DHL Express VIP Air Courier',
-        trackingNumber: `MA-AWB-${Math.floor(10000 + Math.random() * 90000)}`,
-        estimatedDelivery: '3-4 Business Days',
-        customerEmail: 'patron@atelier.com',
-        paymentMethod: 'card',
-        shippingAddress: {
-          id: 'addr-dyn',
-          fullName: 'Valued Atelier Patron',
-          street: 'Private Residence',
-          city: 'Paris',
-          country: 'France',
-          postalCode: '75001'
-        },
-        items: [
-          DEMO_ORDERS[0].items[0]
-        ],
-        timeline: [
-          {
-            title: 'Dossier Registered & Pattern Basting',
-            location: 'Florence Tailoring Studio',
-            timestamp: 'Just now',
-            completed: true,
-            active: true,
-            description: 'Virgin fibers measured, hand-chalked and queued for master sewing.'
-          },
-          {
-            title: 'Artisanal Seam Construction',
-            location: 'Florence Hub',
-            timestamp: 'Pending Hand Assembly',
-            completed: false,
-            active: false,
-            description: 'Master tailors applying pick-stitching and internal horn buttons.'
-          },
-          {
-            title: 'Museum-Grade Boxing & Dispatch',
-            location: 'Express Air Hub',
-            timestamp: 'Pending Quality Seal',
-            completed: false,
-            active: false,
-            description: 'Air dispatch with carbon-neutral priority tracking.'
-          }
-        ]
-      };
-      setCurrentOrder(dynamicOrder);
       setNotFound(false);
     } else {
       setCurrentOrder(null);

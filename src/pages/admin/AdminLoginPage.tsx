@@ -1,28 +1,31 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { ShieldAlert, Lock, Mail, ArrowRight, ShieldCheck } from 'lucide-react';
+import { ShieldAlert, Lock, Mail, ArrowRight, AlertTriangle } from 'lucide-react';
 import { useShop } from '../../context/ShopContext';
 import { Logo } from '../../components/Logo';
+import { isSupabaseConfigured, getSupabaseConfigError } from '../../lib/supabase';
 
 export const AdminLoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, addToast, user, isAdmin } = useShop();
+  const { login, addToast } = useShop();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Quick fill for testing
-  const handleQuickAdmin = () => {
-    setEmail('admin@ahmadclothing.com');
-    setPassword('admin123456');
-  };
+  const isConfigured = isSupabaseConfigured();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (!isConfigured) {
+      setError(getSupabaseConfigError() || 'Supabase authentication is not configured.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -60,12 +63,21 @@ export const AdminLoginPage: React.FC = () => {
             Admin Portal Login
           </h1>
           <p className="text-xs text-[#A1A1AA] font-light mt-2">
-            Enter authorized administrator passkey to access financial metrics, inventory management, and order controls.
+            Enter authorized administrator credentials to access financial metrics, inventory management, and order controls.
           </p>
         </div>
 
         {/* Form Box */}
         <div className="bg-[#1C1C1C] border border-white/10 p-8 shadow-2xl space-y-6">
+          {!isConfigured && (
+            <div className="p-4 bg-amber-950/80 border border-amber-700 text-amber-200 text-xs font-mono flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <span>
+                Supabase credentials required. Please set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.
+              </span>
+            </div>
+          )}
+
           {error && (
             <div className="p-4 bg-rose-950/80 border border-rose-800 text-rose-200 text-xs font-sans leading-relaxed">
               {error}
@@ -83,7 +95,7 @@ export const AdminLoginPage: React.FC = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@ahmadclothing.com"
+                  placeholder="admin@yourdomain.com"
                   className="w-full bg-[#141414] border border-white/15 px-4 py-3 pl-10 text-xs font-mono text-white placeholder:text-white/30 focus:outline-none focus:border-[#E58A77]"
                 />
                 <Mail className="w-4 h-4 text-white/40 absolute left-3 top-3.5" />
@@ -92,7 +104,7 @@ export const AdminLoginPage: React.FC = () => {
 
             <div>
               <label className="block text-[10px] font-mono uppercase tracking-widest text-[#A1A1AA] mb-1.5">
-                Passkey
+                Passkey / Password
               </label>
               <div className="relative">
                 <input
@@ -113,7 +125,7 @@ export const AdminLoginPage: React.FC = () => {
               className="w-full py-3.5 bg-white text-[#141414] font-mono text-xs uppercase tracking-[0.2em] font-bold hover:bg-[#DFCAAB] transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {isSubmitting ? (
-                <span>Authenticating...</span>
+                <span>Authenticating with Supabase...</span>
               ) : (
                 <>
                   <span>Sign In as Admin</span>
@@ -122,20 +134,6 @@ export const AdminLoginPage: React.FC = () => {
               )}
             </button>
           </form>
-
-          {/* Quick Fill for Demo / Testing */}
-          <div className="pt-4 border-t border-white/10 text-center space-y-3">
-            <p className="text-[10px] font-mono text-white/40 uppercase tracking-wider">
-              Quick Admin Fill
-            </p>
-            <button
-              type="button"
-              onClick={handleQuickAdmin}
-              className="w-full py-2 bg-white/5 border border-white/10 text-[11px] font-mono text-[#DFCAAB] hover:bg-white/10 transition-colors"
-            >
-              Fill Demo Admin Credentials
-            </button>
-          </div>
         </div>
 
         <div className="text-center text-xs">

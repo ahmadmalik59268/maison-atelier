@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { X, User, Ruler, Package, Award, Sparkles, Check, ChevronRight } from 'lucide-react';
 import { UserMeasurements, CurrencyCode, OrderRecord } from '../types';
-import { CURRENCIES, DEMO_ORDERS } from '../data/atelierData';
+import { CURRENCIES } from '../data/atelierData';
+import { useShop } from '../context/ShopContext';
 
 interface ClientAccountModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export const ClientAccountModal: React.FC<ClientAccountModalProps> = ({
   onOpenLookbook,
   onOpenBoutiques,
 }) => {
+  const { orders } = useShop();
   const [activeTab, setActiveTab] = useState<'profile' | 'measurements' | 'orders'>('profile');
   const curr = CURRENCIES[currency] || CURRENCIES.USD;
 
@@ -144,7 +146,7 @@ export const ClientAccountModal: React.FC<ClientAccountModalProps> = ({
               }`}
             >
               <Package className="w-3.5 h-3.5" />
-              Order Archive ({DEMO_ORDERS.length})
+              Order Archive ({orders.length})
             </button>
           </div>
 
@@ -330,8 +332,11 @@ export const ClientAccountModal: React.FC<ClientAccountModalProps> = ({
 
             {activeTab === 'orders' && (
               <div className="space-y-4">
-                {DEMO_ORDERS.map((ord) => (
-                  <div key={ord.id} className="p-5 bg-white border border-[#E8E2D8] space-y-3">
+                {orders.length === 0 ? (
+                  <p className="text-xs font-mono text-[#8C8275] text-center py-8">No archived orders on record.</p>
+                ) : (
+                  orders.map((ord) => (
+                    <div key={ord.id} className="p-5 bg-white border border-[#E8E2D8] space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E8E2D8] pb-3">
                       <div>
                         <span className="font-mono text-xs font-bold text-[#18181B]">{ord.id}</span>
@@ -366,7 +371,8 @@ export const ClientAccountModal: React.FC<ClientAccountModalProps> = ({
                       </button>
                     </div>
                   </div>
-                ))}
+                ))
+              )}
               </div>
             )}
           </div>
