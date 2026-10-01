@@ -198,9 +198,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currency, setCurrencyState] = useState<CurrencyCode>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENCY) as CurrencyCode;
-      return saved && CURRENCIES[saved] ? saved : 'USD';
+      return saved && CURRENCIES[saved] ? saved : 'PKR';
     } catch {
-      return 'USD';
+      return 'PKR';
     }
   });
 
@@ -1113,7 +1113,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const formatPrice = (priceUsd: number) => {
-    const curr = CURRENCIES[currency] || CURRENCIES.USD;
+    const curr = CURRENCIES[currency] || CURRENCIES.PKR;
     const amount = Math.round(priceUsd * curr.rate);
     return `${curr.symbol}${amount.toLocaleString()}`;
   };

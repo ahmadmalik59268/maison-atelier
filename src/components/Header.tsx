@@ -39,7 +39,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearchModal }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currencyDropdownOpen, setCurrencyDropdownOpen] = useState(false);
 
-  const curr = CURRENCIES[currency] || CURRENCIES.USD;
+  const curr = CURRENCIES[currency] || CURRENCIES.PKR;
   const freeShippingConverted = Math.round(250 * curr.rate);
 
   const handleNav = (path: string) => {

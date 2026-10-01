@@ -122,7 +122,7 @@ export interface StylePreset {
   itemIds: string[];
 }
 
-export type CurrencyCode = 'USD' | 'EUR' | 'GBP' | 'JPY';
+export type CurrencyCode = 'PKR' | 'USD' | 'EUR' | 'GBP' | 'JPY';
 
 export interface CurrencyConfig {
   code: CurrencyCode;

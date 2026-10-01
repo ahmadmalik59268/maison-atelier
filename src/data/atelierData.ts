@@ -10,6 +10,7 @@ import {
 } from '../types';
 
 export const CURRENCIES: Record<string, CurrencyConfig> = {
+  PKR: { code: 'PKR', symbol: 'Rs. ', rate: 278.0 },
   USD: { code: 'USD', symbol: '$', rate: 1.0 },
   EUR: { code: 'EUR', symbol: '€', rate: 0.92 },
   GBP: { code: 'GBP', symbol: '£', rate: 0.79 },
